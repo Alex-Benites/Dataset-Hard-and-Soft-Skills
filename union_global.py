@@ -1,148 +1,217 @@
 import pandas as pd
-import os
+from collections import Counter
 
-def unir_todos_los_csv():
+def generar_tabla_descripcion_dataset_ecuador():
     """
-    Une todos los CSV de empleos en un solo archivo con columna de origen
+    Genera tabla descriptiva del Dataset Ecuador (scraping local) para paper
     """
-    print("🔗 UNIENDO TODOS LOS CSV DE EMPLEOS")
-    print("="*60)
 
-    # Definir los archivos a unir con sus rutas y nombres de origen
-    archivos_csv = {
-        'scripts accionTrabajo/accionTrabajo_jobs_limpio.csv': 'accion trabajo',
-        'scripts Bing/bing_jobs_limpio.csv': 'bing',
-        'scripts indeed/indeed_jobs_limpio.csv': 'indeed',
-        'scripts multitrabajo/multitrabajos_jobs_limpio.csv': 'multitrabajos',
-        'scripts opcionEmpleo/opcionEmpleo_jobs_limpio.csv': 'opcion empleo'
+    print("Cargando dataset Ecuador...")
+    df = pd.read_csv('Dataset_habilidades_hard_and_soft_skills.csv')
+
+    print("\n" + "="*80)
+    print("TABLA 2. DESCRIPCIÓN DEL DATASET ECUADOR (SCRAPING LOCAL)")
+    print("="*80)
+
+    # INFORMACIÓN GENERAL
+    print("\n📊 INFORMACIÓN GENERAL:")
+    print(f"  Total de registros: {len(df):,}")
+    print(f"  Total de columnas: {len(df.columns)}")
+
+    # DESCRIPCIÓN DE COLUMNAS
+    print("\n📋 DESCRIPCIÓN DE COLUMNAS:")
+    print(f"\n{'Columna':<25} {'Tipo':<15} {'Descripción':<50}")
+    print("-" * 90)
+
+    columnas_info = {
+        'titulo': ('Texto', 'Título del puesto de trabajo'),
+        'empresa': ('Texto', 'Nombre de la empresa empleadora'),
+        'ubicacion': ('Texto', 'Ubicación específica del empleo'),
+        'salario': ('Numérico', 'Salario ofrecido (USD)'),
+        'modalidad': ('Texto', 'Modalidad de trabajo (remoto/presencial/híbrido)'),
+        'jornada': ('Texto', 'Tipo de jornada laboral'),
+        'Area': ('Categórica', 'Perfil profesional clasificado'),
+        'pagina': ('Categórica', 'Portal web de origen del dato'),
+        'habilidades_hard': ('Texto', 'Habilidades técnicas extraídas'),
+        'habilidades_soft': ('Texto', 'Habilidades blandas extraídas')
     }
 
-    # Lista para almacenar todos los DataFrames
-    dataframes = []
+    for columna, (tipo, desc) in columnas_info.items():
+        print(f"{columna:<25} {tipo:<15} {desc:<50}")
 
-    # Cargar cada archivo y agregar columna de origen
-    for archivo, nombre_pagina in archivos_csv.items():
-        try:
-            print(f"\n📂 Cargando: {archivo}")
+    # DISTRIBUCIÓN POR PORTAL WEB
+    print("\n🌐 DISTRIBUCIÓN POR PORTAL WEB (FUENTE):")
+    print(f"\n{'Portal Web':<30} {'Cantidad':<15} {'Porcentaje':<15}")
+    print("-" * 60)
 
-            # Verificar si el archivo existe
-            if os.path.exists(archivo):
-                df = pd.read_csv(archivo)
+    distribucion_portal = df['pagina'].value_counts()
+    for portal, cantidad in distribucion_portal.items():
+        porcentaje = (cantidad / len(df)) * 100
+        print(f"{portal:<30} {cantidad:>10,} {porcentaje:>13.1f}%")
 
-                # Agregar columna 'pagina' con el nombre de origen
-                df['pagina'] = nombre_pagina
+    # DISTRIBUCIÓN POR PERFIL PROFESIONAL
+    print("\n📈 DISTRIBUCIÓN POR PERFIL PROFESIONAL:")
+    print(f"\n{'Perfil':<30} {'Cantidad':<15} {'Porcentaje':<15}")
+    print("-" * 60)
 
-                print(f"   ✅ Registros cargados: {len(df)}")
-                print(f"   📋 Columnas: {df.columns.tolist()}")
+    distribucion_area = df['Area'].value_counts()
+    for area, cantidad in distribucion_area.items():
+        porcentaje = (cantidad / len(df)) * 100
+        print(f"{area:<30} {cantidad:>10,} {porcentaje:>13.1f}%")
 
-                # Verificar estructura
-                columnas_esperadas = ['titulo', 'empresa', 'ubicacion', 'salario', 'modalidad',
-                                    'jornada', 'Area', 'habilidades_hard', 'habilidades_soft', 'pagina']
+    # COMPLETITUD DE DATOS
+    print("\n✅ COMPLETITUD DE DATOS:")
+    print(f"\n{'Columna':<25} {'Registros Completos':<20} {'Porcentaje':<15}")
+    print("-" * 60)
 
-                if df.columns.tolist() == columnas_esperadas:
-                    print(f"   ✅ Estructura correcta")
-                    dataframes.append(df)
-                else:
-                    print(f"   ⚠️  Estructura diferente: {df.columns.tolist()}")
-                    # Mostrar qué columnas faltan o sobran
-                    faltantes = set(columnas_esperadas) - set(df.columns.tolist())
-                    extras = set(df.columns.tolist()) - set(columnas_esperadas)
-                    if faltantes:
-                        print(f"       Columnas faltantes: {faltantes}")
-                    if extras:
-                        print(f"       Columnas extra: {extras}")
-            else:
-                print(f"   ❌ No se encontró el archivo: {archivo}")
-                # Listar archivos disponibles en esa carpeta
-                carpeta = os.path.dirname(archivo)
-                if os.path.exists(carpeta):
-                    archivos_disponibles = [f for f in os.listdir(carpeta) if f.endswith('.csv')]
-                    print(f"   📁 Archivos CSV disponibles en {carpeta}: {archivos_disponibles}")
+    for columna in df.columns:
+        if columna in ['habilidades_hard', 'habilidades_soft']:
+            completos = len(df[df[columna] != 'No especificado'])
+        else:
+            completos = df[columna].notna().sum()
 
-        except Exception as e:
-            print(f"   ❌ Error al cargar {archivo}: {str(e)}")
+        porcentaje = (completos / len(df)) * 100
+        print(f"{columna:<25} {completos:>15,} {porcentaje:>13.1f}%")
 
-    # Verificar que se cargaron archivos
-    if len(dataframes) == 0:
-        print(f"\n❌ No se pudo cargar ningún archivo. Verificando estructura de carpetas...")
+    # ESTADÍSTICAS DE HABILIDADES
+    print("\n🎯 ESTADÍSTICAS DE HABILIDADES EXTRAÍDAS:")
 
-        # Mostrar estructura actual
-        print(f"\n📁 ESTRUCTURA DE CARPETAS ENCONTRADA:")
-        for carpeta in ['scripts accionTrabajo', 'scripts Bing', 'scripts indeed',
-                       'scripts multitrabajo', 'scripts opcionEmpleo']:
-            if os.path.exists(carpeta):
-                archivos = [f for f in os.listdir(carpeta) if f.endswith('.csv')]
-                print(f"   {carpeta}: {archivos}")
-            else:
-                print(f"   {carpeta}: [NO EXISTE]")
-        return None
+    hard_especificadas = len(df[df['habilidades_hard'] != 'No especificado'])
+    soft_especificadas = len(df[df['habilidades_soft'] != 'No especificado'])
 
-    if len(dataframes) != len(archivos_csv):
-        print(f"\n⚠️  Solo se cargaron {len(dataframes)} de {len(archivos_csv)} archivos")
+    print(f"\n  Registros con habilidades hard especificadas: {hard_especificadas:,} ({hard_especificadas/len(df)*100:.1f}%)")
+    print(f"  Registros con habilidades soft especificadas: {soft_especificadas:,} ({soft_especificadas/len(df)*100:.1f}%)")
 
-    # Unir todos los DataFrames
-    print(f"\n🔗 UNIENDO {len(dataframes)} ARCHIVOS...")
-    df_final = pd.concat(dataframes, ignore_index=True)
+    # Top habilidades por tipo
+    print("\n  Top 10 Habilidades Hard más demandadas (Ecuador):")
+    hard_counter = Counter()
+    for skills in df['habilidades_hard']:
+        if pd.notna(skills) and skills != 'No especificado':
+            habilidades = [h.strip() for h in str(skills).split(',')]
+            hard_counter.update(habilidades)
 
-    # Reordenar columnas para poner 'pagina' después de 'Area'
-    columnas_finales = [
-        'titulo', 'empresa', 'ubicacion', 'salario', 'modalidad',
-        'jornada', 'Area', 'pagina', 'habilidades_hard', 'habilidades_soft'
-    ]
-    df_final = df_final[columnas_finales]
+    for i, (skill, count) in enumerate(hard_counter.most_common(10), 1):
+        print(f"    {i:2d}. {skill}: {count:,} menciones")
 
-    # Guardar archivo final
-    archivo_final = 'empleos_unidos_completo.csv'
-    df_final.to_csv(archivo_final, index=False, encoding='utf-8-sig')
+    print("\n  Top 10 Habilidades Soft más demandadas (Ecuador):")
+    soft_counter = Counter()
+    for skills in df['habilidades_soft']:
+        if pd.notna(skills) and skills != 'No especificado':
+            habilidades = [h.strip() for h in str(skills).split(',')]
+            soft_counter.update(habilidades)
 
-    print(f"\n✅ ARCHIVO FINAL CREADO: {archivo_final}")
-    print(f"📊 ESTADÍSTICAS FINALES:")
-    print(f"   Total de registros: {len(df_final)}")
-    print(f"   Total de columnas: {len(df_final.columns)}")
-    print(f"   Columnas: {df_final.columns.tolist()}")
+    for i, (skill, count) in enumerate(soft_counter.most_common(10), 1):
+        print(f"    {i:2d}. {skill}: {count:,} menciones")
 
-    # Mostrar distribución por página
-    print(f"\n📊 DISTRIBUCIÓN POR PÁGINA:")
-    distribucion = df_final['pagina'].value_counts()
-    for pagina, cantidad in distribucion.items():
-        porcentaje = (cantidad / len(df_final)) * 100
-        print(f"   {pagina}: {cantidad} registros ({porcentaje:.1f}%)")
+    # COBERTURA GEOGRÁFICA
+    print("\n📍 COBERTURA GEOGRÁFICA (ECUADOR):")
+    ubicaciones_unicas = df['ubicacion'].nunique()
+    print(f"  Ubicaciones únicas: {ubicaciones_unicas}")
 
-    # Mostrar distribución por área
-    print(f"\n📊 DISTRIBUCIÓN POR ÁREA:")
-    areas = df_final['Area'].value_counts()
-    for area, cantidad in areas.items():
-        porcentaje = (cantidad / len(df_final)) * 100
-        print(f"   {area}: {cantidad} registros ({porcentaje:.1f}%)")
+    print(f"\n  Top 10 ubicaciones con más ofertas:")
+    print(f"\n  {'Ubicación':<35} {'Cantidad':<15}")
+    print("  " + "-" * 50)
 
-    # Mostrar muestra del archivo final
-    print(f"\n📋 MUESTRA DEL ARCHIVO FINAL:")
-    muestra = df_final.head(3)[['titulo', 'empresa', 'Area', 'pagina']]
-    print(muestra.to_string(index=False))
+    top_ubicaciones = df['ubicacion'].value_counts().head(10)
+    for ubicacion, cantidad in top_ubicaciones.items():
+        print(f"  {str(ubicacion)[:35]:<35} {cantidad:>10,}")
 
-    # Verificar integridad de datos
-    print(f"\n🔍 VERIFICACIÓN DE INTEGRIDAD:")
-    print(f"   Registros con título vacío: {df_final['titulo'].isna().sum()}")
-    print(f"   Registros con área vacía: {df_final['Area'].isna().sum()}")
-    print(f"   Registros con página vacía: {df_final['pagina'].isna().sum()}")
+    # ANÁLISIS DE SALARIOS
+    print("\n💰 ANÁLISIS SALARIAL:")
+    salarios_validos = df[df['salario'].notna()]
 
-    # Mostrar estadísticas por combinación área-página
-    print(f"\n📊 MATRIZ ÁREA vs PÁGINA:")
-    matriz = pd.crosstab(df_final['Area'], df_final['pagina'], margins=True)
+    if len(salarios_validos) > 0:
+        print(f"  Registros con salario especificado: {len(salarios_validos):,} ({len(salarios_validos)/len(df)*100:.1f}%)")
+        print(f"  Salario promedio: ${salarios_validos['salario'].mean():.2f} USD")
+        print(f"  Salario mediana: ${salarios_validos['salario'].median():.2f} USD")
+        print(f"  Salario mínimo: ${salarios_validos['salario'].min():.2f} USD")
+        print(f"  Salario máximo: ${salarios_validos['salario'].max():.2f} USD")
+    else:
+        print(f"  No hay datos salariales disponibles")
+
+    # MATRIZ PERFIL vs PORTAL
+    print("\n📊 MATRIZ: PERFIL vs PORTAL WEB:")
+    matriz = pd.crosstab(df['Area'], df['pagina'], margins=True)
     print(matriz)
 
-    return df_final
+    # RESUMEN PARA TABLA DEL PAPER
+    print("\n" + "="*80)
+    print("📄 RESUMEN PARA TABLA DEL PAPER")
+    print("="*80)
+
+    total_portales = df['pagina'].nunique()
+
+    print(f"""
+Tabla 2. Descripción del Dataset Ecuador (Web Scraping)
+
+Característica                      | Valor
+------------------------------------|------------------------------------------
+Total de registros                  | {len(df):,}
+Columnas                            | {len(df.columns)}
+Portales web scrapeados             | {total_portales} ({', '.join(df['pagina'].unique())})
+Perfiles profesionales              | 3 (QA, Desarrollador, Analista de Datos)
+Ubicaciones en Ecuador              | {ubicaciones_unicas}
+Registros con habilidades hard      | {hard_especificadas:,} ({hard_especificadas/len(df)*100:.1f}%)
+Registros con habilidades soft      | {soft_especificadas:,} ({soft_especificadas/len(df)*100:.1f}%)
+Registros con salario especificado  | {len(salarios_validos):,} ({len(salarios_validos)/len(df)*100:.1f}%)
+Completitud promedio                | {df.notna().mean().mean()*100:.1f}%
+
+Distribución por portal web:
+{chr(10).join([f"- {portal}: {count:,} ({count/len(df)*100:.1f}%)" for portal, count in distribucion_portal.items()])}
+
+Distribución por perfil:
+{chr(10).join([f"- {area}: {count:,} ({count/len(df)*100:.1f}%)" for area, count in distribucion_area.items()])}
+
+Top 5 Habilidades Hard (Ecuador):
+{chr(10).join([f"  {i}. {skill} ({count:,} menciones)" for i, (skill, count) in enumerate(hard_counter.most_common(5), 1)])}
+
+Top 5 Habilidades Soft (Ecuador):
+{chr(10).join([f"  {i}. {skill} ({count:,} menciones)" for i, (skill, count) in enumerate(soft_counter.most_common(5), 1)])}
+
+Metodología: Web scraping con Selenium y BeautifulSoup
+Fuentes: {', '.join(df['pagina'].unique())}
+Período de recolección: [Especificar fechas]
+Variables: título, empresa, ubicación, salario, modalidad, jornada, área profesional,
+          portal web, habilidades técnicas (hard), habilidades blandas (soft).
+Procesamiento: Extracción automática mediante NLP y diccionarios predefinidos.
+    """)
+
+    print("="*80)
+
+    # Generar versión LaTeX
+    print("\n" + "="*80)
+    print("📄 VERSIÓN LATEX (copiar al paper)")
+    print("="*80)
+
+    latex_table = f"""
+\\begin{{table}}[h]
+\\centering
+\\caption{{Descripción del Dataset Ecuador (Web Scraping)}}
+\\label{{tab:dataset_ecuador}}
+\\begin{{tabular}}{{|l|r|}}
+\\hline
+\\textbf{{Característica}} & \\textbf{{Valor}} \\\\
+\\hline
+Total de registros & {len(df):,} \\\\
+Columnas & {len(df.columns)} \\\\
+Portales web & {total_portales} \\\\
+Perfiles profesionales & 3 \\\\
+Ubicaciones en Ecuador & {ubicaciones_unicas} \\\\
+Completitud & {df.notna().mean().mean()*100:.1f}\\% \\\\
+\\hline
+\\multicolumn{{2}}{{|c|}}{{\\textbf{{Distribución por Perfil}}}} \\\\
+\\hline
+{chr(10).join([f"{area} & {count:,} ({count/len(df)*100:.1f}\\%) \\\\" for area, count in distribucion_area.items()])}
+\\hline
+\\multicolumn{{2}}{{|c|}}{{\\textbf{{Distribución por Portal}}}} \\\\
+\\hline
+{chr(10).join([f"{portal} & {count:,} ({count/len(df)*100:.1f}\\%) \\\\" for portal, count in distribucion_portal.items()])}
+\\hline
+\\end{{tabular}}
+\\end{{table}}
+    """
+
+    print(latex_table)
 
 if __name__ == "__main__":
-    resultado = unir_todos_los_csv()
-
-    if resultado is not None:
-        print("\n" + "="*60)
-        print("✅ UNIÓN COMPLETADA EXITOSAMENTE")
-        print("="*60)
-        print(f"🎯 Archivo final: empleos_unidos_completo.csv")
-        print(f"📊 Total de empleos: {len(resultado)}")
-    else:
-        print("\n" + "="*60)
-        print("❌ ERROR EN LA UNIÓN")
-        print("="*60)
+    generar_tabla_descripcion_dataset_ecuador()
